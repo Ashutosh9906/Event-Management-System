@@ -1,0 +1,27 @@
+{
+  "name": "event-management-system",
+  "version": "1.0.0",
+  "description": "a simple event management system for organizer and attendee as well",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ashutosh9906/Event-Management-System.git"
+  },
+  "author": "gandule_D_ashutosh",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Ashutosh9906/Event-Management-System/issues"
+  },
+  "homepage": "https://github.com/Ashutosh9906/Event-Management-System#readme",
+  "dependencies": {
+    "@prisma/client": "^6.15.0",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "prisma": "^6.15.0"
+  }
+}
