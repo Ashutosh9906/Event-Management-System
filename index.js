@@ -22,3 +22,9 @@ app.use("/user", userRoutes);
 app.listen(PORT, () => {
     console.log(`Server Started at PORT:${PORT}`)
 });
+
+//Things to be add
+//1. Implement Nodemailer
+//2. Use otp to verify email while createAccout and login
+//3. When organizer do first login send otp and then change password
+//4. add isTemporaryPassword field to user schema
