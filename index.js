@@ -1,5 +1,6 @@
 import express from "express";
 import { configDotenv } from "dotenv";
+import cookieParser from "cookie-parser";
 configDotenv();
 
 const app = express();
@@ -11,6 +12,7 @@ import errorHandling from "./middlewares/errorHandler.js";
 
 //middlewares
 app.use(express.json());
+app.use(cookieParser());
 app.use(errorHandling);
 
 //routes
