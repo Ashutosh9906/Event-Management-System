@@ -28,3 +28,6 @@ app.listen(PORT, () => {
 //2. Use otp to verify email while createAccout and login
 //3. When organizer do first login send otp and then change password
 //4. add isTemporaryPassword field to user schema
+//5. while sneding otp check one if the email is already verified if yes then don't send otp
+//6. cooldoen period to send otp
+//7. user otp deletion after 

@@ -5,12 +5,14 @@ import {handleCreateAccount,
         handleOrganizerRequests, 
         handleApproveRequest, 
         handleSendOtp,
-        handleVerifyOtp
+        handleVerifyOtp,
+        handleForgetPassword
     } from "../controllers/user.js";
 import { checkAuthentication, checkAuthorization } from "../middlewares/auth.js";
 
 const router = Router();
 
+router.post("/forgetPassword", handleForgetPassword);
 router.post("/createAccount", handleCreateAccount);
 router.post("/login", handleUserLogin);
 router.post("/logout", handleUserLogout);
