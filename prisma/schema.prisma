@@ -20,11 +20,12 @@ enum Role {
 }
 
 model User {
-  id       String @id @default(cuid())
-  name     String
-  email    String @unique
-  password String
-  role     Role   @default(ATTENDEE)
+  id                  String  @id @default(cuid())
+  name                String
+  email               String  @unique
+  password            String
+  role                Role    @default(ATTENDEE)
+  isTemporaryPassword Boolean @default(false)
 }
 
 model Requests {
@@ -34,4 +35,13 @@ model Requests {
   email        String @unique
   ContactNo    String @unique
   purpose      String
+}
+
+model Otp {
+  id         String   @id @default(cuid())
+  otp        String   @unique
+  email      String   
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
 }

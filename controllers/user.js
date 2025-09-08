@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createTokenUser } from "../utilities/auth.js";
 import crypto from "crypto";
+import { sendOtp } from "../utilities/email.js";
 
 const prisma = new PrismaClient();
 
@@ -19,6 +20,10 @@ async function handleCreateAccount(req, res, next) {
         if (role == "ATTENDEE") {
             const { name, email, password } = req.body;
             const hashedPassword = await bcrypt.hash(password, 10);
+            const verifiedUser = await prisma.otp.findFirst({
+                where: { email }
+            })
+            if(!verifiedUser.isVerified) return handleResponse(res, 400, "User Not Verified");
             const newUser = await prisma.user.create({
                 data: { name, email, password: hashedPassword, role },
                 select: { name: true, email: true, role: true }
@@ -31,8 +36,13 @@ async function handleCreateAccount(req, res, next) {
                 maxAge: 24 * 60 * 60 * 1000
             })
             return handleResponse(res, 201, "User Created Successully", newUser);
-        } else if (role == "ORGANIZER"){
+        } else if (role == "ORGANIZER") {
             const { name, organization, email, ContactNo, purpose } = req.body;
+            const verifiedUser = await prisma.otp.findFirst({
+                where: { email }
+            })
+            if(!verifiedUser) return handleResponse(res, 400, "User Not Verified");
+            if(!verifiedUser.isVerified) return handleResponse(res, 400, "User Not Verified");
             const newOrganizer = await prisma.requests.create({
                 data: { name, organization, email, ContactNo, purpose },
                 select: { name: true, organization: true, email: true, ContactNo: true }
@@ -82,7 +92,7 @@ function handleUserLogout(req, res, next) {
     }
 }
 
-async function handleOrganizerRequests(req, res, next){
+async function handleOrganizerRequests(req, res, next) {
     try {
         const requests = await prisma.requests.findMany();
         return handleResponse(res, 200, "Requests fetched Successfully", requests);
@@ -91,17 +101,21 @@ async function handleOrganizerRequests(req, res, next){
     }
 }
 
-async function handleApproveRequest(req, res, next){
+async function handleApproveRequest(req, res, next) {
     try {
         const requestId = req.params.id;
         const request = await prisma.requests.findUnique({
             where: { id: requestId }
         });
-        if(!request) return handleResponse(res, 404, "Request Not Found");
+        if (!request) return handleResponse(res, 404, "Request Not Found");
         const temporaryPassword = crypto.randomBytes(12).toString("base64").slice(0, 12);
         const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
         const approvedUser = await prisma.user.create({
-            data: { name: request.name, email: request.email, password: hashedPassword, role: "ORGANIZER" },
+            data: { name: request.name, 
+                    email: request.email, 
+                    password: hashedPassword, 
+                    role: "ORGANIZER", 
+                    isTemporaryPassword: true },
             select: { name: true, email: true, role: true }
         });
         await prisma.requests.delete({
@@ -113,10 +127,47 @@ async function handleApproveRequest(req, res, next){
     }
 }
 
+async function handleSendOtp(req, res, next) {
+    try {
+        const { email } = req.body;
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        sendOtp(otp, email);
+        const hashedOtp = await bcrypt.hash(otp, 10);
+        const generatedOtp = await prisma.otp.create({
+            data: { otp: hashedOtp, email, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
+            select: { email: true, expiresAt: true }
+        });
+        return handleResponse(res, 201, "Otp Send Successfully valid for 5 mins", generatedOtp);
+    } catch (error) {
+        next(error);
+    }
+}
+
+async function handleVerifyOtp(req, res, next) {
+    try {
+        const { email, otp } = req.body;
+        const userOtp = await prisma.otp.findFirst({
+            where: { email }
+        });
+        const isMatch = await bcrypt.compare(otp, userOtp.otp);
+        if(!isMatch) return handleResponse(res, 400, "Invalid Otp Please Try Again");
+        if(userOtp.expiresAt < new Date()) return handleResponse(res, 410, "Otp Expired");
+        await prisma.otp.update({
+            where: { id: userOtp.id },
+            data: { isVerified: true }
+        });
+        return handleResponse(res, 200, "Otp Verified Successfully");
+    } catch (error) {
+        next(error);
+    }
+}
+
 export {
     handleCreateAccount,
     handleUserLogin,
     handleUserLogout,
     handleOrganizerRequests,
-    handleApproveRequest
+    handleApproveRequest,
+    handleSendOtp,
+    handleVerifyOtp
 }
