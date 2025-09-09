@@ -12,7 +12,7 @@ function checkAuthentication(req, res, next) {
     }
 }
 
-function checkAuthorization(req, res, next){
+function checkAuthorizationAdmin(req, res, next){
     try {
         const userRole = req.user.role;
         if(userRole != "ADMIN") return res.status(401).json({ error: "User is unauthorized" })
@@ -22,7 +22,18 @@ function checkAuthorization(req, res, next){
     }
 }
 
+function checkAuthorizationOrganizer(req, res, next){
+    try {
+        const userRole = req.user.role;
+        if(userRole != "ORGANIZER") return res.status(401).json({ error: "User is unauthorized" })
+            next();
+    } catch (error) {
+        next(error);
+    }
+}
+
 export {
     checkAuthentication,
-    checkAuthorization
+    checkAuthorizationAdmin,
+    checkAuthorizationOrganizer
 }

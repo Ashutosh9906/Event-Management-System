@@ -7,7 +7,8 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 //customModules
-import userRoutes from "./routes/userRoutes.js"
+import userRoutes from "./routes/userRoutes.js";
+import eventRoutes from "./routes/eventRoutes.js";
 import errorHandling from "./middlewares/errorHandler.js";
 
 //middlewares
@@ -17,6 +18,7 @@ app.use(errorHandling);
 
 //routes
 app.use("/user", userRoutes);
+app.use("/event", eventRoutes);
 
 //starting server
 app.listen(PORT, () => {
@@ -31,3 +33,4 @@ app.listen(PORT, () => {
 //5. while sneding otp check one if the email is already verified if yes then don't send otp
 //6. cooldoen period to send otp
 //7. user otp deletion after 
+//8. While organizing the event must be organized atlest more than one day

@@ -19,6 +19,13 @@ enum Role {
   ADMIN
 }
 
+enum Category{
+  CONFERENCE
+  WORKSHOP
+  MEETUP
+  WEBINAR
+}
+
 model User {
   id            String  @id @default(cuid())
   name          String
@@ -28,6 +35,8 @@ model User {
   organization  String  @default("NOT APPLICABLE")
   isVerified    Boolean @default(false)
   isPasswordSet Boolean @default(true)
+
+  events Event[]
 }
 
 model Requests {
@@ -47,4 +56,18 @@ model Otp {
   isVerified Boolean  @default(false)
   createdAt  DateTime @default(now())
   expiresAt  DateTime
+}
+
+
+model Event{
+  id String @id @default(cuid())
+  title String
+  description String
+  category Category @default(CONFERENCE)
+  date DateTime 
+  availableSeats Int @default(100)
+  organizerId String
+  isCanceled Boolean @default(false)
+
+  organizer User @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 }
