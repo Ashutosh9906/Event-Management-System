@@ -2,7 +2,7 @@
 <html lang="en" style="margin:0; padding:0;">
   <head>
     <meta charset="UTF-8" />
-    <title>OTP Verification</title>
+    <title>Request Rejected</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -20,7 +20,7 @@
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
       }
       .header {
-        background: #4f46e5;
+        background: #dc2626; /* red */
         color: #ffffff;
         text-align: center;
         padding: 20px;
@@ -31,18 +31,28 @@
       }
       .content {
         padding: 30px;
-        text-align: center;
+        text-align: left;
       }
-      .otp {
-        display: inline-block;
-        font-size: 28px;
-        font-weight: bold;
-        letter-spacing: 8px;
-        color: #111827;
-        background: #f3f4f6;
-        padding: 12px 20px;
-        border-radius: 6px;
+      .credentials {
         margin: 20px 0;
+        padding: 15px 20px;
+        background: #f3f4f6;
+        border-radius: 6px;
+        font-size: 16px;
+      }
+      .credentials p {
+        margin: 8px 0;
+        font-weight: bold;
+        color: #111827;
+      }
+      .note {
+        margin-top: 15px;
+        padding: 12px 16px;
+        background: #fee2e2;
+        border-left: 4px solid #dc2626;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #7f1d1d;
       }
       .footer {
         background: #f4f4f7;
@@ -61,22 +71,28 @@
     <div class="container">
       <!-- Header -->
       <div class="header">
-        <h1>Email Verification</h1>
+        <h1>Request Rejected ❌</h1>
       </div>
 
       <!-- Content -->
       <div class="content">
-        <h2>Hello, {{name}} 👋</h2>
         <p>
-          Use the One-Time Password (OTP) below to verify your email address:
+          Hello <strong>${request.name}</strong>,  
+          We regret to inform you that your request to become an organizer has been rejected.  
+          Below are your request details:
         </p>
 
-        <div class="otp">{{otp}}</div>
+        <div class="credentials">
+          <p>Name: <span style="font-weight: normal;">${request.name}</span></p>
+          <p>Email: <span style="font-weight: normal;">${request.email}</span></p>
+          <p>Organization: <span style="font-weight: normal;">${request.organization}</span></p>
+        </div>
 
-        <p>
-          This OTP is valid for <strong>10 minutes</strong>.  
-          Please do not share it with anyone.
-        </p>
+        <div class="note">
+          If you believe this decision was made in error or would like further clarification,  
+          please contact our support team.  
+          You may also reapply in the future.
+        </div>
       </div>
 
       <!-- Footer -->

@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createTokenUser } from "../utilities/auth.js";
 import crypto from "crypto";
-import { sendOtp, sendRequestApproved } from "../utilities/email.js";
+import { sendOtp, sendRequestApproved, sendRequestRejected } from "../utilities/email.js";
 
 const prisma = new PrismaClient();
 
@@ -22,7 +22,7 @@ async function handleCreateAccount(req, res, next) {
             const isUser = await prisma.user.findUnique({
                 where: { email }
             });
-            if(isUser) return handleResponse(res, 400, "User Already exist");
+            if (isUser) return handleResponse(res, 400, "User Already exist");
             const hashedPassword = await bcrypt.hash(password, 10);
             const verifiedUser = await prisma.otp.findFirst({
                 where: { email }
@@ -117,28 +117,42 @@ async function handleOrganizerRequests(req, res, next) {
 
 async function handleApproveRequest(req, res, next) {
     try {
-        const requestId = req.params.id;
-        const request = await prisma.requests.findUnique({
-            where: { id: requestId }
-        });
-        if (!request) return handleResponse(res, 404, "Request Not Found");
-        const approvedUser = await prisma.user.create({
-            data: {
-                name: request.name,
-                email: request.email,
-                password: "",
-                role: "ORGANIZER",
-                organization: request.organization,
-                isVerified: request.isVerified,
-                isPasswordSet: false
-            },
-            select: { name: true, email: true, role: true, organization: true }
-        });
-        sendRequestApproved(approvedUser, approvedUser.email);
-        await prisma.requests.delete({
-            where: { id: requestId }
-        });
-        return handleResponse(res, 200, "Request Approved Successfully", approvedUser);
+        if (req.query.approve) {
+            const requestId = req.query.approve;
+            const request = await prisma.requests.findUnique({
+                where: { id: requestId }
+            });
+            if (!request) return handleResponse(res, 404, "Request Not Found");
+            const approvedUser = await prisma.user.create({
+                data: {
+                    name: request.name,
+                    email: request.email,
+                    password: "",
+                    role: "ORGANIZER",
+                    organization: request.organization,
+                    isVerified: request.isVerified,
+                    isPasswordSet: false
+                },
+                select: { name: true, email: true, role: true, organization: true }
+            });
+            sendRequestApproved(approvedUser, approvedUser.email);
+            await prisma.requests.delete({
+                where: { id: requestId }
+            });
+            return handleResponse(res, 200, "Request Approved Successfully", approvedUser);
+        } else if ( req.query.reject ) {
+            const requestId = req.query.reject;
+            const request = await prisma.requests.findUnique({
+                where: { id: requestId },
+                select: { name: true, email: true, organization: true, ContactNo: true }
+            });
+            if (!request) return handleResponse(res, 404, "Request Not Found");
+            sendRequestRejected(request, request.email);
+            await prisma.requests.delete({
+                where: { id: requestId }
+            });
+            return handleResponse(res, 200, "Request Rejected Successfully", request);
+        }
     } catch (error) {
         next(error);
     }
@@ -150,11 +164,11 @@ async function handleSendOtp(req, res, next) {
         const oldOtp = await prisma.otp.findUnique({
             where: { email }
         });
-        if(oldOtp){
+        if (oldOtp) {
             const now = new Date();
             const diffMs = now - otpRecord.createdAt;
             const diffMinutes = diffMs / (1000 * 60);
-            if(diffMinutes < 1) return handleResponse(res, 400, "You must wait 1 minute before requesting a new OTP");
+            if (diffMinutes < 1) return handleResponse(res, 400, "You must wait 1 minute before requesting a new OTP");
             else {
                 await prisma.otp.delete({
                     where: { email }
@@ -181,7 +195,7 @@ async function handleVerifyOtp(req, res, next) {
         const userOtp = await prisma.otp.findUnique({
             where: { email }
         });
-        if(!userOtp) return handleResponse(res, 404, "Invalid Credentials");
+        if (!userOtp) return handleResponse(res, 404, "Invalid Credentials");
         // console.log(userOtp);
         const isMatch = await bcrypt.compare(otp, userOtp.otp);
         if (!isMatch) return handleResponse(res, 400, "Invalid Otp Please Try Again");
@@ -196,19 +210,19 @@ async function handleVerifyOtp(req, res, next) {
     }
 }
 
-async function handleForgetPassword(req, res, next){
+async function handleForgetPassword(req, res, next) {
     try {
         // console.log("forgot password request", req.body)
         const { email, password } = req.body;
         const verifiedUser = await prisma.otp.findFirst({
             where: { email }
         })
-        if(!verifiedUser || !verifiedUser.isVerified) return handleResponse(res, 404, "User not verified");
+        if (!verifiedUser || !verifiedUser.isVerified) return handleResponse(res, 404, "User not verified");
         const user = await prisma.user.findUnique({
             where: { email },
             select: { name: true, email: true, role: true }
         });
-        if(!user) return handleResponse(res, 400, "User with such credentials does not exist");
+        if (!user) return handleResponse(res, 400, "User with such credentials does not exist");
         const hashedPassword = await bcrypt.hash(password, 10);
         await prisma.user.update({
             where: { email },
@@ -233,3 +247,8 @@ export {
     handleVerifyOtp,
     handleForgetPassword
 }
+
+//1. also create an route for reject the organizer request and also the rejection email
+//2. Organizer rejection reason from user
+//3. Address of events
+//4. One more ooption to organize event online or offline

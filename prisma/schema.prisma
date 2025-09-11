@@ -26,6 +26,11 @@ enum Category{
   WEBINAR
 }
 
+enum status{
+  REGISTERED
+  CANCELLED
+}
+
 model User {
   id            String  @id @default(cuid())
   name          String
@@ -37,6 +42,7 @@ model User {
   isPasswordSet Boolean @default(true)
 
   events Event[]
+  registration Registration[]
 }
 
 model Requests {
@@ -58,7 +64,6 @@ model Otp {
   expiresAt  DateTime
 }
 
-
 model Event{
   id String @id @default(cuid())
   title String
@@ -70,4 +75,17 @@ model Event{
   isCanceled Boolean @default(false)
 
   organizer User @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  registrations Registration[]
+}
+
+model Registration{
+  id String @id @default(cuid())
+  userId String
+  eventId String
+  status status @default(REGISTERED)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@unique([userId, eventId])
 }

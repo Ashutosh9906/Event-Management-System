@@ -20,6 +20,14 @@ const createEventSchema = z.object({
                     .default(100)
 });
 
+const eventStatusEnum = z.enum(["REGISTERED", "CANCELLED"])
+
+const createEventRegistrationSchema = z.object({
+    eventId: z.string().cuid({ message: "Invalid Event ID" }),
+    status: eventStatusEnum.default("REGISTERED"),
+})
+
 export {
-    createEventSchema
+    createEventSchema,
+    createEventRegistrationSchema,
 }

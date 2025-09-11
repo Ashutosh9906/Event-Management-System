@@ -17,7 +17,7 @@ router.post("/createAccount", handleCreateAccount);
 router.post("/login", handleUserLogin);
 router.post("/logout", handleUserLogout);
 router.get("/admin/requests", checkAuthentication, checkAuthorizationAdmin, handleOrganizerRequests);
-router.post("/admin/:id/approve", handleApproveRequest);
+router.post("/admin", handleApproveRequest);
 router.post("/sendOtp", handleSendOtp);
 router.post("/verifyOtp", handleVerifyOtp);
 
