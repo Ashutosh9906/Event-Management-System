@@ -27,7 +27,14 @@ const createEventRegistrationSchema = z.object({
     status: eventStatusEnum.default("REGISTERED"),
 })
 
+const mailAttendes = z.object({
+    subject: z.string().min(5, "min 5 char in subject").max(50, "Max 50 char in subject"),
+    message: z.string().min(10, "min 10 char in message"),
+    eventId: z.string().cuid({ message: "Invalid Event ID" })
+})
+
 export {
     createEventSchema,
     createEventRegistrationSchema,
+    mailAttendes
 }

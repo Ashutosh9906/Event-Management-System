@@ -26,7 +26,17 @@ function checkAuthorizationOrganizer(req, res, next){
     try {
         const userRole = req.user.role;
         if(userRole != "ORGANIZER") return res.status(401).json({ error: "User is unauthorized" })
-            next();
+        next();
+    } catch (error) {
+        next(error);
+    }
+}
+
+function checkAuthorizationAttendee(req, res, next){
+    try {
+        const userRole = req.user.role;
+        if(userRole != "ATTENDEE") return res.status(401).json({ error: "User is unauthorized" })
+        next();
     } catch (error) {
         next(error);
     }
@@ -35,5 +45,6 @@ function checkAuthorizationOrganizer(req, res, next){
 export {
     checkAuthentication,
     checkAuthorizationAdmin,
-    checkAuthorizationOrganizer
+    checkAuthorizationOrganizer,
+    checkAuthorizationAttendee
 }

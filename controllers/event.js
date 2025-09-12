@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { int } from "zod";
-import { sendRegistrationApproved } from "../utilities/email.js";
+import { sendMailToAttendes, sendRegistrationApproved, sendRegistrationCancel } from "../utilities/email.js";
 
 const prisma = new PrismaClient();
 
@@ -171,6 +171,7 @@ async function handleGetEvents(req, res, next) {
                     date: "asc"
                 },
             });
+            // console.log(allEvents);
             return handleResponse(res, 200, "All events fetched successfully", allEvents);
         }
     } catch (error) {
@@ -187,7 +188,7 @@ async function handleEventRegistration(req, res, next) {
                 where: { id: eventId },
                 select: { isCanceled: true, availableSeats: true }
             });
-            if (!event) throw new Error("NO_EVENT"); 
+            if (!event) throw new Error("NO_EVENT");
             if (event.date < new Date()) throw new Error("PAST_EVENT");
             if (event.availableSeats <= 0) throw new Error("NO_SEATS");
 
@@ -236,12 +237,112 @@ async function handleEventRegistration(req, res, next) {
     }
 }
 
+async function handleCancelRegistration(req, res, next) {
+    try {
+        const userId = req.user.id;
+        const eventId = req.params.id;
+        // console.log("EventId: " + eventId + " UserId: " + userId);
+        await prisma.$transaction(async (tx) => {
+            const event = await tx.event.findUnique({
+                where: { id: eventId },
+                select: { isCanceled: true, availableSeats: true }
+            });
+            if (!event) throw new Error("NO_EVENT");
+            if (event.date < new Date()) throw new Error("PAST_EVENT");
+
+            const isRegistration = await tx.registration.findUnique({
+                where: { userId_eventId: { userId, eventId } }
+            });
+            if (!isRegistration) throw new Error("NO_REGISTRATION");
+
+            const registration = await prisma.registration.delete({
+                where: { userId_eventId: { userId, eventId } },
+                include: {
+                    event: {
+                        select: {
+                            title: true,
+                            organizer: {
+                                select: {
+                                    name: true
+                                }
+                            }
+                        }
+                    },
+                    user: {
+                        select: {
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            });
+
+            registration.status = "CANCELLED";
+            const now = new Date();
+            const formatted = now.toString();
+            registration.createdAt = formatted;
+
+            await tx.event.update({
+                where: { id: eventId },
+                data: { availableSeats: { increment: 1 } }
+            });
+
+            sendRegistrationCancel(registration, registration.user.email);
+
+            return handleResponse(res, 200, "Registration cancelled successfully", registration);
+        })
+    } catch (error) {
+        if (error.message === "NO_EVENT") return handleResponse(res, 404, "No Such Active Event");
+        if (error.message === "PAST_EVENT") return handleResponse(res, 400, "The event has already passed");
+        if (error.message === "NO_REGISTRATION") return handleResponse(res, 404, "No registration with those credentials");
+        next(error);
+    }
+}
+
+async function handleMailAttendes(req, res, next){
+    try {
+        const { subject, message, eventId } = res.locals.validated;
+        const organizerId = req.user.id;
+        const registration = await prisma.registration.findMany({
+            where: { eventId },
+            include: {
+                event: {
+                    select: {
+                        title: true,
+                        organizer: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
+                    }
+                },
+                user: {
+                    select: {
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
+        if(organizerId != registration[0].event.organizer.id) return handleResponse(res, 400, "You are unauthorized to send mail for this event");
+        for(let user of registration){
+            sendMailToAttendes(user, user.user.email, subject, message);
+        }
+        return handleResponse(res, 200, "Registration fetched successfully", registration);
+    } catch (error) {
+        next(error);
+    }
+}
+
 export {
     handleOrganizeEvent,
     handleCancelEvent,
     handleEditEvent,
     handleGetEvents,
-    handleEventRegistration
+    handleEventRegistration,
+    handleCancelRegistration,
+    handleMailAttendes
 }
 
 //1. While deletion take password from the user to confirm that's it is not by mistake
@@ -250,3 +351,12 @@ export {
 //4. if the event is passed then he can't delete that post
 //5. while deletion do soft delete
 //6. while updating if available seats if the number of registration for that specific event is above the new available seats than give an error
+//7. Cancel registration -Done
+//8. organizer to mail all its registerd attendes
+//9. review of the event after its half an hour
+//10. destination of event if offline and add modes online, offline
+//11. sending the reject request with an reason
+//12. cancel event take reason from organizer and send mial to all rigister attendes with reason
+//13. all my registrstion
+//14. after updation of the something in event send email to attendes
+//15. after cancellation of event send email to attendes of cancellation
