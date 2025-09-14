@@ -31,6 +31,11 @@ enum status{
   CANCELLED
 }
 
+enum Mode{
+  ONLINE
+  OFFLINE
+}
+
 model User {
   id            String  @id @default(cuid())
   name          String
@@ -70,6 +75,8 @@ model Event{
   description String
   category Category @default(CONFERENCE)
   date DateTime 
+  mode Mode
+  destination String
   availableSeats Int @default(100)
   organizerId String
   isCanceled Boolean @default(false)

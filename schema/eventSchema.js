@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, ZodObject } from "zod";
 
 const categoryEnum = z.enum(["CONFERENCE", "WORKSHOP", "MEETUP", "WEBINAR"]);
 
@@ -13,6 +13,8 @@ const createEventSchema = z.object({
             { message: "Event Date must be at least 1 day ahead in the future" }
         )
     ),
+    mode: z.enum(["ONLINE", "OFFLINE"]),
+    destination: z.string().min(5, "min 5 char in string"),
     availableSeats:z.number()
                     .int()
                     .min(100, { message: "seats must be atleast 100" })
@@ -33,8 +35,19 @@ const mailAttendes = z.object({
     eventId: z.string().cuid({ message: "Invalid Event ID" })
 })
 
+const rejectionReason = z.object({
+    reason: z.string().min(5, "min 5 char to be in reason").optional()
+})
+
+const eventCancel = z.object({
+    password: z.string().min(2, "to small password"),
+    reason: z.string().min(10, "To short reason")
+})
+
 export {
     createEventSchema,
     createEventRegistrationSchema,
-    mailAttendes
+    mailAttendes,
+    rejectionReason,
+    eventCancel
 }

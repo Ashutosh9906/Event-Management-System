@@ -235,7 +235,7 @@ async function sendRequestApproved(request, recipientEmail) {
   }
 }
 
-async function sendRequestRejected(request, recipientEmail) {
+async function sendRequestRejected(request, recipientEmail, reason) {
   const mailOptions = {
     from: process.env.USER_EMAIL,
     to: recipientEmail,
@@ -287,6 +287,10 @@ async function sendRequestRejected(request, recipientEmail) {
         font-weight: bold;
         color: #111827;
       }
+      .credentials span {
+        font-weight: normal;
+        color: #374151;
+      }
       .note {
         margin-top: 15px;
         padding: 12px 16px;
@@ -325,9 +329,10 @@ async function sendRequestRejected(request, recipientEmail) {
         </p>
 
         <div class="credentials">
-          <p>Name: <span style="font-weight: normal;">${request.name}</span></p>
-          <p>Email: <span style="font-weight: normal;">${request.email}</span></p>
-          <p>Organization: <span style="font-weight: normal;">${request.organization}</span></p>
+          <p>Name: <span>${request.name}</span></p>
+          <p>Email: <span>${request.email}</span></p>
+          <p>Organization: <span>${request.organization}</span></p>
+          <p>Reason for Rejection: <span>${reason}</span></p>
         </div>
 
         <div class="note">
@@ -347,6 +352,7 @@ async function sendRequestRejected(request, recipientEmail) {
     </div>
   </body>
 </html>
+
 `
   };
   try {
@@ -509,7 +515,17 @@ async function sendRegistrationApproved(registration, recipientEmail) {
                 <span class="badge badge-warning">${registration.event.date}</span>
               </td>
             </tr>
-            
+            <!-- New Fields -->
+            <tr>
+              <td class="label">Mode of Event:</td>
+              <td class="value">${registration.event.mode}</td>
+            </tr>
+            <tr>
+              <td class="label">Destination:</td>
+              <td class="value">
+                ${registration.event.destination}
+              </td>
+            </tr>
           </table>
         </div>
 
@@ -529,6 +545,7 @@ async function sendRegistrationApproved(registration, recipientEmail) {
     </div>
   </body>
 </html>
+
 `
   };
   try {
@@ -893,12 +910,195 @@ async function sendMailToAttendes(registration, recipientEmail, subject, message
   }
 }
 
+async function snedEventCanceled(user, event, reason, recipientEmail) {
+  const mailOptions = {
+    from: process.env.USER_EMAIL,
+    to: recipientEmail,
+    subject: 'Event Cancelled Receipt',
+    html: `<!DOCTYPE html>
+<html lang="en" style="margin:0; padding:0;">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Event Cancelled</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background-color: #f4f4f7;
+        margin: 0;
+        padding: 0;
+        color: #333333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 30px auto;
+        background: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+      }
+      .header {
+        background: linear-gradient(90deg, #dc2626, #b91c1c);
+        color: #ffffff;
+        text-align: center;
+        padding: 25px;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 700;
+      }
+      .content {
+        padding: 30px;
+        text-align: left;
+      }
+      .content p {
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .credentials {
+        margin: 20px 0;
+        padding: 20px;
+        background: #f9fafb;
+        border-radius: 8px;
+        font-size: 15px;
+        border: 1px solid #e5e7eb;
+      }
+      .credentials table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .credentials td {
+        padding: 6px 0;
+        vertical-align: top;
+      }
+      .label {
+        font-weight: bold;
+        color: #111827;
+        width: 40%;
+      }
+      .value {
+        color: #374151;
+      }
+      .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+      }
+      .badge-cancelled {
+        background: #ef4444;
+      }
+      .badge-date {
+        background: #6b7280;
+      }
+      .note {
+        margin-top: 20px;
+        padding: 15px 18px;
+        background: #fef2f2;
+        border-left: 5px solid #dc2626;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #991b1b;
+      }
+      .footer {
+        background: #f9fafb;
+        text-align: center;
+        padding: 15px;
+        font-size: 13px;
+        color: #6b7280;
+      }
+      .footer a {
+        color: #dc2626;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <h1>❌ Event Cancelled</h1>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <p>
+          Hello <strong>${user.name}</strong>,  
+          We regret to inform you that the event you registered for has been cancelled by the organizer.  
+          Below are the details of the cancelled event:
+        </p>
+
+        <div class="credentials">
+          <table>
+            <tr>
+              <td class="label">Status:</td>
+              <td class="value">
+                <span class="badge badge-cancelled">CANCELLED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="label">Organizer:</td>
+              <td class="value">${event.organizer.name}</td>
+            </tr>
+            <tr>
+              <td class="label">Event Title:</td>
+              <td class="value" style="font-weight:600; font-size:16px;">
+                ${event.title}
+              </td>
+            </tr>
+            <tr>
+              <td class="label">Event Date:</td>
+              <td class="value">
+                <span class="badge badge-date">${event.date}</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="label">Registered User:</td>
+              <td class="value">${user.name}</td>
+            </tr>
+            <tr>
+              <td class="label">Reason for Cancellation:</td>
+              <td class="value">${reason}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="note">
+          We sincerely apologize for the inconvenience.  
+          Please check our events page for other upcoming events that may interest you.
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p>
+          &copy; 2025 MyApp. All rights reserved.<br />
+          Need help? <a href="mailto:support@myapp.com">Contact Support</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
+`
+  };
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Email Sent:', info.response);
+    return;
+  } catch (error) {
+    next(error);
+  }
+}
+
 export {
   sendOtp,
   sendRequestApproved,
   sendRequestRejected,
   sendRegistrationApproved,
   sendRegistrationCancel,
-  sendMailToAttendes
+  sendMailToAttendes,
+  snedEventCanceled
 }
 

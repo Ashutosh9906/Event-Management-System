@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { int } from "zod";
-import { sendMailToAttendes, sendRegistrationApproved, sendRegistrationCancel } from "../utilities/email.js";
+import { sendMailToAttendes, sendRegistrationApproved, sendRegistrationCancel, snedEventCanceled } from "../utilities/email.js";
 
 const prisma = new PrismaClient();
 
@@ -15,11 +15,19 @@ const handleResponse = (res, status, message, data = null) => {
 
 async function handleOrganizeEvent(req, res, next) {
     try {
-        const { title, description, category, date, availableSeats } = res.locals.validated;
+        const { title, description, category, date, mode, destination, availableSeats } = res.locals.validated;
         const organizerId = req.user.id;
         const event = await prisma.event.create({
-            data: { title, description, category, date, availableSeats, organizerId },
-            select: { title: true, description: true, category: true, date: true, availableSeats: true }
+            data: { title, description, category, date, mode, destination, availableSeats, organizerId },
+            select: {
+                title: true, 
+                description: true, 
+                category: true, 
+                date: true, 
+                mode: true, 
+                destination: true, 
+                availableSeats: true
+            }
         });
         return handleResponse(res, 200, "Event Scheduled Successfully", event);
     } catch (error) {
@@ -29,7 +37,7 @@ async function handleOrganizeEvent(req, res, next) {
 
 async function handleCancelEvent(req, res, next) {
     try {
-        const { password } = req.body;
+        const { password, reason } = req.body;
         const eventId = req.params.id;
         const event = await prisma.event.findUnique({
             where: { id: eventId }
@@ -48,6 +56,30 @@ async function handleCancelEvent(req, res, next) {
             where: { id: eventId },
             data: { isCanceled: true }
         });
+        const events = await prisma.event.findUnique({
+            where: { id: eventId },
+            include: {
+                organizer: {
+                    select: {
+                        name: true
+                    }
+                },
+                registrations: {
+                    select: {
+                        user: {
+                            select: {
+                                name: true,
+                                email: true,
+
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        for(let ticket of events.registrations){
+            snedEventCanceled(ticket.user, events, reason, ticket.user.email);
+        }
         return handleResponse(res, 400, "Event has been canceled Successfully");
     } catch (error) {
         next(error);
@@ -203,6 +235,8 @@ async function handleEventRegistration(req, res, next) {
                         select: {
                             title: true,
                             date: true,
+                            mode: true,
+                            destination: true,
                             organizer: {
                                 select: {
                                     name: true
@@ -352,10 +386,10 @@ export {
 //5. while deletion do soft delete
 //6. while updating if available seats if the number of registration for that specific event is above the new available seats than give an error
 //7. Cancel registration -Done
-//8. organizer to mail all its registerd attendes
+//8. organizer to mail all its registerd attendes -Done
 //9. review of the event after its half an hour
-//10. destination of event if offline and add modes online, offline
-//11. sending the reject request with an reason
+//10. destination of event if offline and add modes online, offline -Done
+//11. sending the reject request with an reason -Done
 //12. cancel event take reason from organizer and send mial to all rigister attendes with reason
 //13. all my registrstion
 //14. after updation of the something in event send email to attendes

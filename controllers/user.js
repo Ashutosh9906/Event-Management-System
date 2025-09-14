@@ -141,13 +141,14 @@ async function handleApproveRequest(req, res, next) {
             });
             return handleResponse(res, 200, "Request Approved Successfully", approvedUser);
         } else if ( req.query.reject ) {
+            const { reason } = res.locals.validated;
             const requestId = req.query.reject;
             const request = await prisma.requests.findUnique({
                 where: { id: requestId },
                 select: { name: true, email: true, organization: true, ContactNo: true }
             });
             if (!request) return handleResponse(res, 404, "Request Not Found");
-            sendRequestRejected(request, request.email);
+            sendRequestRejected(request, request.email, reason);
             await prisma.requests.delete({
                 where: { id: requestId }
             });
