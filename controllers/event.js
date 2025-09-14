@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { int } from "zod";
-import { sendMailToAttendes, sendRegistrationApproved, sendRegistrationCancel, snedEventCanceled } from "../utilities/email.js";
+import { gte, int } from "zod";
+import { sendEventUpdates, sendMailToAttendes, sendRegistrationApproved, sendRegistrationCancel, snedEventCanceled } from "../utilities/email.js";
 
 const prisma = new PrismaClient();
 
@@ -20,12 +20,12 @@ async function handleOrganizeEvent(req, res, next) {
         const event = await prisma.event.create({
             data: { title, description, category, date, mode, destination, availableSeats, organizerId },
             select: {
-                title: true, 
-                description: true, 
-                category: true, 
-                date: true, 
-                mode: true, 
-                destination: true, 
+                title: true,
+                description: true,
+                category: true,
+                date: true,
+                mode: true,
+                destination: true,
                 availableSeats: true
             }
         });
@@ -77,7 +77,7 @@ async function handleCancelEvent(req, res, next) {
                 }
             }
         })
-        for(let ticket of events.registrations){
+        for (let ticket of events.registrations) {
             snedEventCanceled(ticket.user, events, reason, ticket.user.email);
         }
         return handleResponse(res, 400, "Event has been canceled Successfully");
@@ -96,13 +96,29 @@ async function handleEditEvent(req, res, next) {
         if (!event) return handleResponse(res, 400, "No Such Event Scheduled");
         if (event.isCanceled) return handleResponse(res, 400, "Event is already been canceled");
         if (event.organizerId != organizerId) return handleResponse(res, 400, "Unauthorized to edit Event");
-        const { title, description, category, date, availableSeats } = res.locals.validated;
+        const { title, description, category, date, availableSeats, mode, destination } = res.locals.validated;
         if (event.date.getTime() < Date.now()) return handleResponse(res, 400, "Event has already been passed");
         const updatedEvent = await prisma.event.update({
             where: { id },
-            data: { title, description, category, date, availableSeats, organizerId },
-            select: { title: true, description: true, category: true, date: true, availableSeats: true }
+            data: { title, description, category, date, availableSeats, organizerId, mode, destination },
+            include: {
+                registrations: {
+                    select: {
+                        user: {
+                            select: {
+                                name: true,
+                                email: true
+                            }
+                        }
+                    }
+                }
+            }
         });
+
+        for(let ticket of updatedEvent.registrations){
+            sendEventUpdates(updatedEvent, ticket.user, ticket.user.email);
+        }
+
         return handleResponse(res, 200, "Event updated successfully", updatedEvent);
     } catch (error) {
         next(error);
@@ -333,7 +349,7 @@ async function handleCancelRegistration(req, res, next) {
     }
 }
 
-async function handleMailAttendes(req, res, next){
+async function handleMailAttendes(req, res, next) {
     try {
         const { subject, message, eventId } = res.locals.validated;
         const organizerId = req.user.id;
@@ -359,11 +375,67 @@ async function handleMailAttendes(req, res, next){
                 }
             }
         });
-        if(organizerId != registration[0].event.organizer.id) return handleResponse(res, 400, "You are unauthorized to send mail for this event");
-        for(let user of registration){
+        if (organizerId != registration[0].event.organizer.id) return handleResponse(res, 400, "You are unauthorized to send mail for this event");
+        for (let user of registration) {
             sendMailToAttendes(user, user.user.email, subject, message);
         }
         return handleResponse(res, 200, "Registration fetched successfully", registration);
+    } catch (error) {
+        next(error);
+    }
+}
+
+async function handleGetMyRegistrations(req, res, next) {
+    try {
+        const userId = req.user.id;
+        const registrations = await prisma.registration.findMany({
+            where: {
+                userId,
+                event: {
+                    date: { gte: new Date() },
+                    isCanceled: false
+                }
+            },
+            include: {
+                event: {
+                    select: {
+                        title: true,
+                        date: true,
+                        organizer: {
+                            select: {
+                                name: true
+                            }
+                        },
+                        isCanceled: true
+                    }
+                },
+            }
+        })
+        return handleResponse(res, 200, "my Registrations fetched successfully", registrations);
+    } catch (error) {
+        next(error);
+    }
+}
+
+async function handleGetEventRegistrations(req, res, next){
+    try {
+        const organizerId = req.user.id;
+        const events = await prisma.event.findMany({
+            where: { organizerId },
+            include: {
+                registrations: {
+                    select: {
+                        user: {
+                            select: {
+                                name: true,
+                                email: true
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        return handleResponse(res, 200, "All events with registrations fetched successfully", events);
     } catch (error) {
         next(error);
     }
@@ -376,7 +448,9 @@ export {
     handleGetEvents,
     handleEventRegistration,
     handleCancelRegistration,
-    handleMailAttendes
+    handleMailAttendes,
+    handleGetMyRegistrations,
+    handleGetEventRegistrations,
 }
 
 //1. While deletion take password from the user to confirm that's it is not by mistake
@@ -390,7 +464,7 @@ export {
 //9. review of the event after its half an hour
 //10. destination of event if offline and add modes online, offline -Done
 //11. sending the reject request with an reason -Done
-//12. cancel event take reason from organizer and send mial to all rigister attendes with reason
-//13. all my registrstion
-//14. after updation of the something in event send email to attendes
-//15. after cancellation of event send email to attendes of cancellation
+//12. cancel event take reason from organizer and send mial to all rigister attendes with reason -Done
+//13. all my registrstion -Done
+//14. after updation of the something in event send email to attendes -Done
+//15. after cancellation of event send email to attendes of cancellation -Done
