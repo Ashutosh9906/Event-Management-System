@@ -1,4 +1,4 @@
-import { z, ZodObject } from "zod";
+import { z } from "zod";
 
 const categoryEnum = z.enum(["CONFERENCE", "WORKSHOP", "MEETUP", "WEBINAR"]);
 
@@ -44,10 +44,17 @@ const eventCancel = z.object({
     reason: z.string().min(10, "To short reason")
 })
 
+const UserFeedback = z.object({
+    eventId: z.string().cuid({ message: "Invalid Event Id" }),
+    rating: z.number().int().min(1, "Invalid Rating").max(5, "Invalid Rating"),
+    feedback: z.string().min(4, "min size 4 char")
+})
+
 export {
     createEventSchema,
     createEventRegistrationSchema,
     mailAttendes,
     rejectionReason,
-    eventCancel
+    eventCancel,
+    UserFeedback
 }

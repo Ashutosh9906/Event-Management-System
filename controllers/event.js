@@ -115,7 +115,7 @@ async function handleEditEvent(req, res, next) {
             }
         });
 
-        for(let ticket of updatedEvent.registrations){
+        for (let ticket of updatedEvent.registrations) {
             sendEventUpdates(updatedEvent, ticket.user, ticket.user.email);
         }
 
@@ -417,7 +417,7 @@ async function handleGetMyRegistrations(req, res, next) {
     }
 }
 
-async function handleGetEventRegistrations(req, res, next){
+async function handleGetEventRegistrations(req, res, next) {
     try {
         const organizerId = req.user.id;
         const events = await prisma.event.findMany({
@@ -441,6 +441,58 @@ async function handleGetEventRegistrations(req, res, next){
     }
 }
 
+async function hanldeEventFeedback(req, res, next) {
+    try {
+        const { eventId, rating, feedback } = res.locals.validated;
+        const userId = req.user.id;
+        const event = await prisma.event.findUnique({
+            where: { id: eventId }
+        });
+        if (!event) return handleResponse(res, 404, "Event not found");
+        const eventDate = new Date(event.date); // convert Prisma DateTime → JS Date
+        const now = new Date();
+        const feedbackStart = new Date(eventDate.getTime() + 30 * 60 * 1000);
+        // console.log(now);
+        // console.log(feedbackStart)
+        if (feedbackStart > now) return handleResponse(res, 400, "Unable to give feedback");
+        const registration = await prisma.registration.findUnique({
+            where: { userId_eventId: { userId, eventId } }
+        });
+        if (!registration) return handleResponse(res, 400, "You are not registered to the specific event");
+        const userFeedback = await prisma.feedback.create({
+            data: { userId, eventId, rating, feedback },
+            select: { rating: true, feedback: true }
+        })
+        return handleResponse(res, 200, "Feedback given successfully", userFeedback);
+    } catch (error) {
+        next(error);
+    }
+}
+
+async function handleGetEventFeedback(req, res, next){
+    try {
+        const eventId = req.params.id;
+        const event = await prisma.event.findUnique({
+            where: { id: eventId }
+        });
+        if(!event) return handleResponse(res, 200, "Event does not exist");
+        const feedback = await prisma.feedback.findMany({
+            where: { eventId },
+            include: {
+                user: {
+                    select: {
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
+        return handleResponse(res, 200, "Feedback fetched successfully", feedback);
+    } catch (error) {
+        next(error);
+    }
+}
+
 export {
     handleOrganizeEvent,
     handleCancelEvent,
@@ -451,6 +503,8 @@ export {
     handleMailAttendes,
     handleGetMyRegistrations,
     handleGetEventRegistrations,
+    hanldeEventFeedback,
+    handleGetEventFeedback
 }
 
 //1. While deletion take password from the user to confirm that's it is not by mistake

@@ -7,11 +7,13 @@ import {handleCancelEvent,
         handleCancelRegistration,
         handleMailAttendes,
         handleGetMyRegistrations,
-        handleGetEventRegistrations
+        handleGetEventRegistrations,
+        hanldeEventFeedback,
+        handleGetEventFeedback
     } from "../controllers/event.js";
 import { checkAuthentication, checkAuthorizationAttendee, checkAuthorizationOrganizer } from "../middlewares/auth.js";
 import { parseRequestBody } from "../middlewares/parseBody.js";
-import { createEventRegistrationSchema, createEventSchema, eventCancel, mailAttendes } from "../schema/eventSchema.js";
+import { createEventRegistrationSchema, createEventSchema, eventCancel, mailAttendes, UserFeedback } from "../schema/eventSchema.js";
 
 const router = Router();
 
@@ -24,5 +26,7 @@ router.post("/cancelRegistration/:id", checkAuthentication, checkAuthorizationAt
 router.post("/mailAttendes", checkAuthentication, checkAuthorizationOrganizer, parseRequestBody(mailAttendes), handleMailAttendes)
 router.get("/myRegistrations", checkAuthentication, checkAuthorizationAttendee, handleGetMyRegistrations)
 router.get("/eventRegistrations", checkAuthentication, checkAuthorizationOrganizer, handleGetEventRegistrations)
+router.post("/feedback", checkAuthentication, checkAuthorizationAttendee, parseRequestBody(UserFeedback), hanldeEventFeedback)
+router.get("/allFeedback/:id", handleGetEventFeedback);
 
 export default router;

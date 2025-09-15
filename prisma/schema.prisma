@@ -48,6 +48,7 @@ model User {
 
   events Event[]
   registration Registration[]
+  feedbacks Feedback[]
 }
 
 model Requests {
@@ -83,6 +84,7 @@ model Event{
 
   organizer User @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   registrations Registration[]
+  feedbacks Feedback[]
 }
 
 model Registration{
@@ -95,4 +97,15 @@ model Registration{
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   @@unique([userId, eventId])
+}
+
+model Feedback{
+  id String @id @default(cuid())
+  userId String
+  eventId String
+  rating Int
+  feedback String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }

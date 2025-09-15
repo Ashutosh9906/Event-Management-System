@@ -15,10 +15,10 @@ const handleResponse = (res, status, message, data = null) => {
 };
 
 async function handleCreateAccount(req, res, next) {
-    const role = req.body.role
+    const role = req.locals.validated.role;
     try {
         if (role == "ATTENDEE") {
-            const { name, email, password } = req.body;
+            const { name, email, password } = req.locals.validated;
             const isUser = await prisma.user.findUnique({
                 where: { email }
             });
@@ -44,7 +44,7 @@ async function handleCreateAccount(req, res, next) {
             })
             return handleResponse(res, 201, "User Created Successully", newUser);
         } else if (role == "ORGANIZER") {
-            const { name, organization, email, ContactNo, purpose } = req.body;
+            const { name, organization, email, ContactNo, purpose } = req.locals.validated;
             const verifiedUser = await prisma.otp.findFirst({
                 where: { email }
             })
@@ -67,7 +67,7 @@ async function handleCreateAccount(req, res, next) {
 }
 
 async function handleUserLogin(req, res, next) {
-    const { email, password } = req.body;
+    const { email, password } = req.local.validated;
     try {
         const user = await prisma.user.findUnique({
             where: { email },
@@ -161,7 +161,7 @@ async function handleApproveRequest(req, res, next) {
 
 async function handleSendOtp(req, res, next) {
     try {
-        const { email } = req.body;
+        const { email } = req.locals.validated;
         const oldOtp = await prisma.otp.findUnique({
             where: { email }
         });
@@ -191,7 +191,7 @@ async function handleSendOtp(req, res, next) {
 
 async function handleVerifyOtp(req, res, next) {
     try {
-        const { email, otp } = req.body;
+        const { email, otp } = req.locals.validated;
         // console.log(req.body);
         const userOtp = await prisma.otp.findUnique({
             where: { email }
@@ -214,7 +214,7 @@ async function handleVerifyOtp(req, res, next) {
 async function handleForgetPassword(req, res, next) {
     try {
         // console.log("forgot password request", req.body)
-        const { email, password } = req.body;
+        const { email, password } = res.locals.validated;
         const verifiedUser = await prisma.otp.findFirst({
             where: { email }
         })
