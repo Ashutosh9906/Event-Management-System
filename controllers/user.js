@@ -2,7 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createTokenUser } from "../utilities/auth.js";
 import crypto from "crypto";
-import { sendOtp, sendRequestApproved, sendRequestRejected } from "../utilities/email.js";
+import { sendEmail } from "../utilities/email.js";
+import { approveRequest, otpTemplate, rejectRequest } from "../templates/userTemplates.js";
 
 const prisma = new PrismaClient();
 
@@ -15,10 +16,10 @@ const handleResponse = (res, status, message, data = null) => {
 };
 
 async function handleCreateAccount(req, res, next) {
-    const role = req.locals.validated.role;
+    const role = res.locals.validated.role;
     try {
         if (role == "ATTENDEE") {
-            const { name, email, password } = req.locals.validated;
+            const { name, email, password } = res.locals.validated;
             const isUser = await prisma.user.findUnique({
                 where: { email }
             });
@@ -44,7 +45,7 @@ async function handleCreateAccount(req, res, next) {
             })
             return handleResponse(res, 201, "User Created Successully", newUser);
         } else if (role == "ORGANIZER") {
-            const { name, organization, email, ContactNo, purpose } = req.locals.validated;
+            const { name, organization, email, ContactNo, purpose } = res.locals.validated;
             const verifiedUser = await prisma.otp.findFirst({
                 where: { email }
             })
@@ -67,7 +68,7 @@ async function handleCreateAccount(req, res, next) {
 }
 
 async function handleUserLogin(req, res, next) {
-    const { email, password } = req.local.validated;
+    const { email, password } = res.locals.validated;
     try {
         const user = await prisma.user.findUnique({
             where: { email },
@@ -135,7 +136,8 @@ async function handleApproveRequest(req, res, next) {
                 },
                 select: { name: true, email: true, role: true, organization: true }
             });
-            sendRequestApproved(approvedUser, approvedUser.email);
+            sendEmail(approvedUser.email, approveRequest(approvedUser));
+            // sendRequestApproved(approvedUser, approvedUser.email);
             await prisma.requests.delete({
                 where: { id: requestId }
             });
@@ -148,7 +150,8 @@ async function handleApproveRequest(req, res, next) {
                 select: { name: true, email: true, organization: true, ContactNo: true }
             });
             if (!request) return handleResponse(res, 404, "Request Not Found");
-            sendRequestRejected(request, request.email, reason);
+            sendEmail(request.email, rejectRequest( request, reason ));
+            // sendRequestRejected(request, , reason);
             await prisma.requests.delete({
                 where: { id: requestId }
             });
@@ -161,13 +164,13 @@ async function handleApproveRequest(req, res, next) {
 
 async function handleSendOtp(req, res, next) {
     try {
-        const { email } = req.locals.validated;
+        const { email } = res.locals.validated;
         const oldOtp = await prisma.otp.findUnique({
             where: { email }
         });
         if (oldOtp) {
             const now = new Date();
-            const diffMs = now - otpRecord.createdAt;
+            const diffMs = now - oldOtp.createdAt;
             const diffMinutes = diffMs / (1000 * 60);
             if (diffMinutes < 1) return handleResponse(res, 400, "You must wait 1 minute before requesting a new OTP");
             else {
@@ -177,7 +180,8 @@ async function handleSendOtp(req, res, next) {
             }
         }
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        sendOtp(otp, email);
+        sendEmail(email, otpTemplate(otp));
+        // sendOtp(otp, email);
         const hashedOtp = await bcrypt.hash(otp, 10);
         const generatedOtp = await prisma.otp.create({
             data: { otp: hashedOtp, email, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
@@ -191,7 +195,7 @@ async function handleSendOtp(req, res, next) {
 
 async function handleVerifyOtp(req, res, next) {
     try {
-        const { email, otp } = req.locals.validated;
+        const { email, otp } = res.locals.validated;
         // console.log(req.body);
         const userOtp = await prisma.otp.findUnique({
             where: { email }

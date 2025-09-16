@@ -11,7 +11,7 @@ import {handleCreateAccount,
 import { checkAuthentication, checkAuthorizationAdmin } from "../middlewares/auth.js";
 import { parseRequestBody } from "../middlewares/parseBody.js";
 import { rejectionReason } from "../schema/eventSchema.js";
-import { createAccount, otpSchema, Password,  } from "../schema/userSchema.js";
+import { createAccount, Password, sendOtp, verifyOtp,  } from "../schema/userSchema.js";
 
 const router = Router();
 
@@ -21,7 +21,7 @@ router.post("/login", parseRequestBody(Password), handleUserLogin);
 router.post("/logout", handleUserLogout);
 router.get("/admin/requests", checkAuthentication, checkAuthorizationAdmin, handleOrganizerRequests);
 router.post("/admin", parseRequestBody(rejectionReason), handleApproveRequest);
-router.post("/sendOtp", parseRequestBody(otpSchema), handleSendOtp);
-router.post("/verifyOtp", parseRequestBody(otpSchema), handleVerifyOtp);
+router.post("/sendOtp", parseRequestBody(sendOtp), handleSendOtp);
+router.post("/verifyOtp", parseRequestBody(verifyOtp), handleVerifyOtp);
 
 export default router;

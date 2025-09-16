@@ -1,7 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { gte, int } from "zod";
-import { sendEventUpdates, sendMailToAttendes, sendRegistrationApproved, sendRegistrationCancel, snedEventCanceled } from "../utilities/email.js";
+import { sendEmail } from "../utilities/email.js";
+import { cancelRegistration, makeRegistration } from "../templates/userTemplates.js";
+import { cancelEvent, eventUpdates, mailAttendes } from "../templates/eventTemplates.js";
 
 const prisma = new PrismaClient();
 
@@ -37,7 +39,7 @@ async function handleOrganizeEvent(req, res, next) {
 
 async function handleCancelEvent(req, res, next) {
     try {
-        const { password, reason } = req.body;
+        const { password, reason } = res.locals.validated;
         const eventId = req.params.id;
         const event = await prisma.event.findUnique({
             where: { id: eventId }
@@ -78,7 +80,7 @@ async function handleCancelEvent(req, res, next) {
             }
         })
         for (let ticket of events.registrations) {
-            snedEventCanceled(ticket.user, events, reason, ticket.user.email);
+            sendEmail(ticket.user.email, cancelEvent(ticket.user, events, reason))
         }
         return handleResponse(res, 400, "Event has been canceled Successfully");
     } catch (error) {
@@ -116,7 +118,7 @@ async function handleEditEvent(req, res, next) {
         });
 
         for (let ticket of updatedEvent.registrations) {
-            sendEventUpdates(updatedEvent, ticket.user, ticket.user.email);
+            sendEmail(ticket.user.email, eventUpdates( updatedEvent, ticket.user ))
         }
 
         return handleResponse(res, 200, "Event updated successfully", updatedEvent);
@@ -274,7 +276,7 @@ async function handleEventRegistration(req, res, next) {
                 data: { availableSeats: { decrement: 1 } }
             });
 
-            sendRegistrationApproved(newRegistration, newRegistration.user.email);
+            sendEmail(newRegistration.user.email, makeRegistration(newRegistration))
 
             return handleResponse(res, 200, "Registration Successfully", newRegistration)
         })
@@ -337,7 +339,7 @@ async function handleCancelRegistration(req, res, next) {
                 data: { availableSeats: { increment: 1 } }
             });
 
-            sendRegistrationCancel(registration, registration.user.email);
+            sendEmail(registration.user.email, cancelRegistration(registration))
 
             return handleResponse(res, 200, "Registration cancelled successfully", registration);
         })
@@ -375,9 +377,10 @@ async function handleMailAttendes(req, res, next) {
                 }
             }
         });
+        if(!registration[0]) return handleResponse(res, 404, "No registration for this event");
         if (organizerId != registration[0].event.organizer.id) return handleResponse(res, 400, "You are unauthorized to send mail for this event");
         for (let user of registration) {
-            sendMailToAttendes(user, user.user.email, subject, message);
+            sendEmail(user.user.email, mailAttendes( user, message, subject ))
         }
         return handleResponse(res, 200, "Registration fetched successfully", registration);
     } catch (error) {
@@ -522,3 +525,4 @@ export {
 //13. all my registrstion -Done
 //14. after updation of the something in event send email to attendes -Done
 //15. after cancellation of event send email to attendes of cancellation -Done
+//16. handlecancelevent zod parser

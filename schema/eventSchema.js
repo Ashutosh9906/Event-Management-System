@@ -39,15 +39,20 @@ const rejectionReason = z.object({
     reason: z.string().min(5, "min 5 char to be in reason").optional()
 })
 
-const eventCancel = z.object({
-    password: z.string().min(2, "to small password"),
-    reason: z.string().min(10, "To short reason")
-})
-
 const UserFeedback = z.object({
     eventId: z.string().cuid({ message: "Invalid Event Id" }),
     rating: z.number().int().min(1, "Invalid Rating").max(5, "Invalid Rating"),
     feedback: z.string().min(4, "min size 4 char")
+})
+
+const cancelEvent = z.object({
+    password: z.string()
+        .min(8, "Password must be atleast 8 char long")
+        .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+        .regex(/[A-Z]/, "Password must contain at least one Upper letter")
+        .regex(/[0-9]/, "Password must contain at least one number")
+        .regex(/[@$!%*?&#]/, "Password must contain at least one special character (@$!%*?&#)"),
+    reason: z.string().min(4, "min size 4 char")
 })
 
 export {
@@ -55,6 +60,6 @@ export {
     createEventRegistrationSchema,
     mailAttendes,
     rejectionReason,
-    eventCancel,
-    UserFeedback
+    UserFeedback,
+    cancelEvent
 }

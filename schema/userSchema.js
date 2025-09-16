@@ -35,17 +35,15 @@ const newOrganizer = z.object({
     purpose: z.string().min(5, "Purpose to short please elavorate")
 })
 
-const otpSchema = z.union([
-    z.object({
-        email: z.string().email({ message: "Invalid email" })
-    }),
+const sendOtp = z.object({
+    email: z.string().email({ message: "Invalid email" })
+})
 
-    z.object({
-        email: z.string().email({ message: "Invalid email" }),
-        otp: z.string()
-            .regex(/^\d{6}$/, "OTP must be exactly 6 digit")
-    })
-])
+const verifyOtp = z.object({
+    email: z.string().email({ message: "Invalid email" }),
+    otp: z.string()
+        .regex(/^\d{6}$/, "OTP must be exactly 6 digit")
+})
 
 const createAccount = z.discriminatedUnion("role", [
     newAttendee,
@@ -55,5 +53,6 @@ const createAccount = z.discriminatedUnion("role", [
 export {
     Password,
     createAccount,
-    otpSchema
+    sendOtp,
+    verifyOtp
 }
