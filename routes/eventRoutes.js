@@ -1,16 +1,17 @@
 import { Router } from "express";
-import {handleCancelEvent, 
-        handleOrganizeEvent, 
-        handleEditEvent, 
-        handleGetEvents,  
-        handleEventRegistration,
-        handleCancelRegistration,
-        handleMailAttendes,
-        handleGetMyRegistrations,
-        handleGetEventRegistrations,
-        hanldeEventFeedback,
-        handleGetEventFeedback
-    } from "../controllers/event.js";
+import {
+    handleCancelEvent,
+    handleOrganizeEvent,
+    handleEditEvent,
+    handleGetEvents,
+    handleEventRegistration,
+    handleCancelRegistration,
+    handleMailAttendes,
+    handleGetMyRegistrations,
+    handleGetEventRegistrations,
+    hanldeEventFeedback,
+    handleGetEventFeedback
+} from "../controllers/event.js";
 import { checkAuthentication, checkAuthorizationAttendee, checkAuthorizationOrganizer } from "../middlewares/auth.js";
 import { parseRequestBody } from "../middlewares/parseBody.js";
 import { createEventRegistrationSchema, createEventSchema, eventCancel, mailAttendes, UserFeedback } from "../schema/eventSchema.js";

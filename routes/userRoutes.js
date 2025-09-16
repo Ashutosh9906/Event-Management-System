@@ -17,7 +17,7 @@ const router = Router();
 
 router.post("/forgetPassword", parseRequestBody(Password), handleForgetPassword);
 router.post("/createAccount", parseRequestBody(createAccount), handleCreateAccount);
-router.post("/login", parseRequestBody(Password), handleUserLogin);
+router.post("/login", handleUserLogin); // removed parse body
 router.post("/logout", handleUserLogout);
 router.get("/admin/requests", checkAuthentication, checkAuthorizationAdmin, handleOrganizerRequests);
 router.post("/admin", parseRequestBody(rejectionReason), handleApproveRequest);

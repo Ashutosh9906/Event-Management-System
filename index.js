@@ -1,6 +1,9 @@
 import express from "express";
 import { configDotenv } from "dotenv";
 import cookieParser from "cookie-parser";
+import { initBoss } from "./config/db.js";
+import { registerEmailJob } from "./jobs/emailjob.js";
+
 configDotenv();
 
 const app = express();
@@ -20,10 +23,24 @@ app.use(errorHandling);
 app.use("/user", userRoutes);
 app.use("/event", eventRoutes);
 
-//starting server
-app.listen(PORT, () => {
-    console.log(`Server Started at PORT:${PORT}`)
+async function start() {
+    await initBoss();
+    await registerEmailJob();
+
+    app.listen(PORT, () => {
+        console.log(`API + Worker running on http://localhost:${PORT}`);
+    });
+}
+
+start().catch((err) => {
+    console.error("Failed to start:", err);
+    process.exit(1);
 });
+
+// //starting server
+// app.listen(PORT, () => {
+//     console.log(`Server Started at PORT:${PORT}`)
+// });
 
 //Things to be add
 //1. Implement Nodemailer
