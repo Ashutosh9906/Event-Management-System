@@ -66,8 +66,9 @@ async function handleCreateAccount(req, res, next) {
     }
 }
 
+// changed to res.locals , req.local
 async function handleUserLogin(req, res, next) {
-    const { email, password } = req.local.validated;
+    const { email, password } = req.body;
     try {
         const user = await prisma.user.findUnique({
             where: { email },

@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { gte, int } from "zod";
 import { sendEventUpdates, sendMailToAttendes, sendRegistrationApproved, sendRegistrationCancel, snedEventCanceled } from "../utilities/email.js";
+import { enqueueEmail } from "../jobs/emailjob.js";
 
 const prisma = new PrismaClient();
 
@@ -375,9 +376,18 @@ async function handleMailAttendes(req, res, next) {
                 }
             }
         });
+        if(registration.length === 0) 
+            return handleResponse(res, 200, "no attendees", registration);
         if (organizerId != registration[0].event.organizer.id) return handleResponse(res, 400, "You are unauthorized to send mail for this event");
         for (let user of registration) {
-            sendMailToAttendes(user, user.user.email, subject, message);
+            // sendMailToAttendes(user, user.user.email, subject, message);
+            let jobId = await enqueueEmail({
+                user,
+                to: user.user.email,
+                subject,
+                message,
+            });
+            console.log(`Job id : ${jobId}, email: ${user.user.email}`)
         }
         return handleResponse(res, 200, "Registration fetched successfully", registration);
     } catch (error) {
@@ -469,13 +479,13 @@ async function hanldeEventFeedback(req, res, next) {
     }
 }
 
-async function handleGetEventFeedback(req, res, next){
+async function handleGetEventFeedback(req, res, next) {
     try {
         const eventId = req.params.id;
         const event = await prisma.event.findUnique({
             where: { id: eventId }
         });
-        if(!event) return handleResponse(res, 200, "Event does not exist");
+        if (!event) return handleResponse(res, 200, "Event does not exist");
         const feedback = await prisma.feedback.findMany({
             where: { eventId },
             include: {
