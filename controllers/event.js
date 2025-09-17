@@ -4,6 +4,7 @@ import { gte, int } from "zod";
 import { sendEmail } from "../utilities/email.js";
 import { cancelRegistration, makeRegistration } from "../templates/userTemplates.js";
 import { cancelEvent, eventUpdates, mailAttendes } from "../templates/eventTemplates.js";
+import { enqueueEmail } from "../jobs/emailjob.js";
 
 const prisma = new PrismaClient();
 
@@ -79,9 +80,21 @@ async function handleCancelEvent(req, res, next) {
                 }
             }
         })
-        for (let ticket of events.registrations) {
-            sendEmail(ticket.user.email, cancelEvent(ticket.user, events, reason))
+        // for (let ticket of events.registrations) {
+        //     sendEmail(ticket.user.email, cancelEvent(ticket.user, events, reason))
+        // }
+
+        for (let ticket of updatedEvent.registrations) {
+            let jobId = await enqueueEmail({
+                to: ticket.user.email,
+                events,
+                user: ticket.user,
+                reason,
+                templateName: "cancelEvent"
+            });
+            console.log(`Job id : ${jobId}, email: ${ticket.user.email}`)
         }
+
         return handleResponse(res, 400, "Event has been canceled Successfully");
     } catch (error) {
         next(error);
@@ -117,8 +130,18 @@ async function handleEditEvent(req, res, next) {
             }
         });
 
+        // for (let ticket of updatedEvent.registrations) {
+        //     sendEmail(ticket.user.email, eventUpdates(updatedEvent, ticket.user))
+        // }
+
         for (let ticket of updatedEvent.registrations) {
-            sendEmail(ticket.user.email, eventUpdates( updatedEvent, ticket.user ))
+            let jobId = await enqueueEmail({
+                to: ticket.user.email,
+                updatedEvent,
+                user: ticket.user,
+                templateName: "eventUpdates"
+            });
+            console.log(`Job id : ${jobId}, email: ${ticket.user.email}`)
         }
 
         return handleResponse(res, 200, "Event updated successfully", updatedEvent);
@@ -276,7 +299,14 @@ async function handleEventRegistration(req, res, next) {
                 data: { availableSeats: { decrement: 1 } }
             });
 
-            sendEmail(newRegistration.user.email, makeRegistration(newRegistration))
+            // sendEmail(newRegistration.user.email, makeRegistration(newRegistration))
+
+            let jobId = await enqueueEmail({
+                to: newRegistration.user.email,
+                newRegistration,
+                templateName: "makeRegistration"
+            });
+            console.log(`Job id : ${jobId}, email: ${newRegistration.user.email}`)
 
             return handleResponse(res, 200, "Registration Successfully", newRegistration)
         })
@@ -339,7 +369,14 @@ async function handleCancelRegistration(req, res, next) {
                 data: { availableSeats: { increment: 1 } }
             });
 
-            sendEmail(registration.user.email, cancelRegistration(registration))
+            // sendEmail(registration.user.email, cancelRegistration(registration))
+
+            let jobId = await enqueueEmail({
+                to: registration.user.email,
+                registration,
+                templateName: "cancelRegistration"
+            });
+            console.log(`Job id : ${jobId}, email: ${registration.user.email}`)
 
             return handleResponse(res, 200, "Registration cancelled successfully", registration);
         })
@@ -377,10 +414,20 @@ async function handleMailAttendes(req, res, next) {
                 }
             }
         });
-        if(!registration[0]) return handleResponse(res, 404, "No registration for this event");
+        if (!registration[0]) return handleResponse(res, 404, "No registration for this event");
         if (organizerId != registration[0].event.organizer.id) return handleResponse(res, 400, "You are unauthorized to send mail for this event");
+        // for (let user of registration) {
+        //     sendEmail(user.user.email, mailAttendes( user, message, subject ))
+        // }
         for (let user of registration) {
-            sendEmail(user.user.email, mailAttendes( user, message, subject ))
+            let jobId = await enqueueEmail({
+                to: user.user.email,
+                subject,
+                message,
+                user,
+                templateName: "mailAttendes"
+            });
+            console.log(`Job id : ${jobId}, email: ${user.user.email}`)
         }
         return handleResponse(res, 200, "Registration fetched successfully", registration);
     } catch (error) {
@@ -472,13 +519,13 @@ async function hanldeEventFeedback(req, res, next) {
     }
 }
 
-async function handleGetEventFeedback(req, res, next){
+async function handleGetEventFeedback(req, res, next) {
     try {
         const eventId = req.params.id;
         const event = await prisma.event.findUnique({
             where: { id: eventId }
         });
-        if(!event) return handleResponse(res, 200, "Event does not exist");
+        if (!event) return handleResponse(res, 200, "Event does not exist");
         const feedback = await prisma.feedback.findMany({
             where: { eventId },
             include: {

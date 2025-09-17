@@ -136,13 +136,21 @@ async function handleApproveRequest(req, res, next) {
                 },
                 select: { name: true, email: true, role: true, organization: true }
             });
-            sendEmail(approvedUser.email, approveRequest(approvedUser));
+            // sendEmail(approvedUser.email, approveRequest(approvedUser));
+
+            let jobId = await enqueueEmail({
+                to: approvedUser.email,
+                approvedUser,
+                templateName: "approveRequest"
+            });
+            console.log(`Job id : ${jobId}, email: ${approvedUser.email}`)
+
             // sendRequestApproved(approvedUser, approvedUser.email);
             await prisma.requests.delete({
                 where: { id: requestId }
             });
             return handleResponse(res, 200, "Request Approved Successfully", approvedUser);
-        } else if ( req.query.reject ) {
+        } else if (req.query.reject) {
             const { reason } = res.locals.validated;
             const requestId = req.query.reject;
             const request = await prisma.requests.findUnique({
@@ -150,7 +158,16 @@ async function handleApproveRequest(req, res, next) {
                 select: { name: true, email: true, organization: true, ContactNo: true }
             });
             if (!request) return handleResponse(res, 404, "Request Not Found");
-            sendEmail(request.email, rejectRequest( request, reason ));
+            // sendEmail(request.email, rejectRequest(request, reason));
+
+            let jobId = await enqueueEmail({
+                to: request.email,
+                request,
+                reason,
+                templateName: "rejectRequest"
+            });
+            console.log(`Job id : ${jobId}, email: ${request.email}`)
+
             // sendRequestRejected(request, , reason);
             await prisma.requests.delete({
                 where: { id: requestId }
@@ -180,7 +197,15 @@ async function handleSendOtp(req, res, next) {
             }
         }
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        sendEmail(email, otpTemplate(otp));
+        // sendEmail(email, otpTemplate(otp));
+
+        let jobId = await enqueueEmail({
+            to: email,
+            otp,
+            templateName: "otpTemplate"
+        });
+        console.log(`Job id : ${jobId}, email: ${email}`)
+
         // sendOtp(otp, email);
         const hashedOtp = await bcrypt.hash(otp, 10);
         const generatedOtp = await prisma.otp.create({

@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 8000;
 import userRoutes from "./routes/userRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import errorHandling from "./middlewares/errorHandler.js";
+import { initBoss } from "./config/db.js";
+import { registerEmailJob } from "./jobs/emailjob.js";
 
 //middlewares
 app.use(express.json());
@@ -21,8 +23,18 @@ app.use("/user", userRoutes);
 app.use("/event", eventRoutes);
 
 //starting server
-app.listen(PORT, () => {
-    console.log(`Server Started at PORT:${PORT}`)
+async function start() {
+    await initBoss();
+    await registerEmailJob();
+
+    app.listen(PORT, () => {
+        console.log("🚀 API + Worker running on http://localhost:4001");
+    });
+}
+
+start().catch((err) => {
+    console.error("Failed to start:", err);
+    process.exit(1);
 });
 
 //Things to be add
