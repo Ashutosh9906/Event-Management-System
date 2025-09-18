@@ -1,6 +1,7 @@
 import express from "express";
 import { configDotenv } from "dotenv";
 import cookieParser from "cookie-parser";
+import swaggerUi from "swagger-ui-express"
 configDotenv();
 
 const app = express();
@@ -12,11 +13,13 @@ import eventRoutes from "./routes/eventRoutes.js";
 import errorHandling from "./middlewares/errorHandler.js";
 import { initBoss } from "./config/db.js";
 import { registerEmailJob } from "./jobs/emailjob.js";
+import swaggerSpec from "./config/swagger.js";
 
 //middlewares
 app.use(express.json());
 app.use(cookieParser());
 app.use(errorHandling);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 //routes
 app.use("/user", userRoutes);
