@@ -4,6 +4,7 @@ import { createTokenUser } from "../utilities/auth.js";
 import crypto from "crypto";
 import { sendEmail } from "../utilities/email.js";
 import { approveRequest, otpTemplate, rejectRequest } from "../templates/userTemplates.js";
+import { enqueueEmail } from "../jobs/emailjob.js";
 
 const prisma = new PrismaClient();
 

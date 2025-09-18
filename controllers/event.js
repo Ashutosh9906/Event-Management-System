@@ -59,9 +59,12 @@ async function handleCancelEvent(req, res, next) {
             where: { id: eventId },
             data: { isCanceled: true }
         });
-        const events = await prisma.event.findUnique({
+        const eventCanceledDetail = await prisma.event.findUnique({
             where: { id: eventId },
-            include: {
+            select: {
+                title: true,
+                date: true,
+                description: true,
                 organizer: {
                     select: {
                         name: true
@@ -72,22 +75,22 @@ async function handleCancelEvent(req, res, next) {
                         user: {
                             select: {
                                 name: true,
-                                email: true,
-
+                                email: true
                             }
                         }
                     }
                 }
             }
         })
+        // console.log(events);
         // for (let ticket of events.registrations) {
         //     sendEmail(ticket.user.email, cancelEvent(ticket.user, events, reason))
         // }
 
-        for (let ticket of updatedEvent.registrations) {
+        for (let ticket of eventCanceledDetail.registrations) {
             let jobId = await enqueueEmail({
                 to: ticket.user.email,
-                events,
+                eventCanceledDetail,
                 user: ticket.user,
                 reason,
                 templateName: "cancelEvent"
@@ -113,10 +116,17 @@ async function handleEditEvent(req, res, next) {
         if (event.organizerId != organizerId) return handleResponse(res, 400, "Unauthorized to edit Event");
         const { title, description, category, date, availableSeats, mode, destination } = res.locals.validated;
         if (event.date.getTime() < Date.now()) return handleResponse(res, 400, "Event has already been passed");
-        const updatedEvent = await prisma.event.update({
+        const updatedEventDetails = await prisma.event.update({
             where: { id },
             data: { title, description, category, date, availableSeats, organizerId, mode, destination },
-            include: {
+            select: {
+                title: true,
+                description: true,
+                category: true,
+                date: true,
+                availableSeats: true,
+                mode: true,
+                destination: true,
                 registrations: {
                     select: {
                         user: {
@@ -134,17 +144,17 @@ async function handleEditEvent(req, res, next) {
         //     sendEmail(ticket.user.email, eventUpdates(updatedEvent, ticket.user))
         // }
 
-        for (let ticket of updatedEvent.registrations) {
+        for (let ticket of updatedEventDetails.registrations) {
             let jobId = await enqueueEmail({
                 to: ticket.user.email,
-                updatedEvent,
+                updatedEventDetails,
                 user: ticket.user,
                 templateName: "eventUpdates"
             });
             console.log(`Job id : ${jobId}, email: ${ticket.user.email}`)
         }
 
-        return handleResponse(res, 200, "Event updated successfully", updatedEvent);
+        return handleResponse(res, 200, "Event updated successfully", updatedEventDetails);
     } catch (error) {
         next(error);
     }
@@ -264,6 +274,7 @@ async function handleEventRegistration(req, res, next) {
             if (!event) throw new Error("NO_EVENT");
             if (event.date < new Date()) throw new Error("PAST_EVENT");
             if (event.availableSeats <= 0) throw new Error("NO_SEATS");
+            if(event.isCanceled) throw new Error("EVENT_CANCELED")
 
             const isRegistration = await tx.registration.findUnique({
                 where: { userId_eventId: { userId, eventId } }
@@ -271,7 +282,9 @@ async function handleEventRegistration(req, res, next) {
             if (isRegistration) throw new Error("ALREADY_REGISTERED");
             const newRegistration = await tx.registration.create({
                 data: { userId, eventId, status: "REGISTERED" },
-                include: {
+                select: {
+                    status: true,
+                    createdAt: true,
                     event: {
                         select: {
                             title: true,
@@ -312,6 +325,7 @@ async function handleEventRegistration(req, res, next) {
         })
     } catch (error) {
         if (error.message === "NO_EVENT") return handleResponse(res, 404, "No Such Active Event");
+        if (error.message === "EVENT_CANCELED") return handleResponse(res, 404, "Event has benn canceled");
         if (error.message === "PAST_EVENT") return handleResponse(res, 400, "The event has already passed");
         if (error.message === "NO_SEATS") return handleResponse(res, 400, "No seats available");
         if (error.message === "ALREADY_REGISTERED") return handleResponse(res, 400, "User already Registered");
@@ -339,7 +353,8 @@ async function handleCancelRegistration(req, res, next) {
 
             const registration = await prisma.registration.delete({
                 where: { userId_eventId: { userId, eventId } },
-                include: {
+                select: {
+                    createdAt: true,
                     event: {
                         select: {
                             title: true,
@@ -394,7 +409,7 @@ async function handleMailAttendes(req, res, next) {
         const organizerId = req.user.id;
         const registration = await prisma.registration.findMany({
             where: { eventId },
-            include: {
+            select: {
                 event: {
                     select: {
                         title: true,
@@ -446,7 +461,8 @@ async function handleGetMyRegistrations(req, res, next) {
                     isCanceled: false
                 }
             },
-            include: {
+            select: {
+                createdAt: true,
                 event: {
                     select: {
                         title: true,
@@ -472,7 +488,19 @@ async function handleGetEventRegistrations(req, res, next) {
         const organizerId = req.user.id;
         const events = await prisma.event.findMany({
             where: { organizerId },
-            include: {
+            select: {
+                event: {
+                    select: {
+                        title: true,
+                        description: true,
+                        category: true,
+                        data: true,
+                        mode: true,
+                        destination: true,
+                        availableSeats: true,
+                        isCanceled: true,
+                    }
+                },
                 registrations: {
                     select: {
                         user: {
@@ -528,7 +556,7 @@ async function handleGetEventFeedback(req, res, next) {
         if (!event) return handleResponse(res, 200, "Event does not exist");
         const feedback = await prisma.feedback.findMany({
             where: { eventId },
-            include: {
+            select: {
                 user: {
                     select: {
                         name: true,
